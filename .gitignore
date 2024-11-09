@@ -1,1 +1,4 @@
 /target
+/src/bpf/execsnoop.bpf.o
+/src/bpf/execsnoop.skel.json
+/src/bpf/package.json

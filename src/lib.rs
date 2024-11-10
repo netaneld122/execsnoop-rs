@@ -1,4 +1,5 @@
 
+use aya;
 use aya::maps::perf::PerfEventArrayBuffer;
 use aya::maps::{perf::PerfEventArray, MapData};
 use aya::util::online_cpus;
@@ -10,6 +11,8 @@ pub struct Event {
     pub pid: u32,
     pub timestamp: u64,
 }
+
+unsafe impl aya::Pod for Event {}
 
 const EVENT_BUFFERS_COUNT: usize = 10;
 

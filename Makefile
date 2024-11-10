@@ -9,7 +9,7 @@ endif
 
 CC := ${ARCH}-linux-musl-gcc
 TARGET := target/aarch64-unknown-linux-musl/debug/execsnoop
-OUTPUT ?= ${_WORK_DIR}
+OUTPUT ?= ${_WORK_DIR}/execsnoop
 
 ${TARGET}:
 
@@ -28,7 +28,7 @@ build: build-ebpf
 clean:
 	git clean -fx src/bpf/
 	cargo clean
-	rm -fr ${OUTPUT}
+	rm -f ${OUTPUT}
 
 .PHONY: clean build build-ebpf
 

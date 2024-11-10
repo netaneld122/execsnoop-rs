@@ -25,9 +25,10 @@ sudo ./execsnoop
 
 ## Output example
 ```bash
-[2024-11-10T09:09:36Z INFO  execsnoop] Waiting for Ctrl-C...
-[2024-11-10T09:09:43Z INFO  execsnoop] [hit] execve pid:1816635 ts:1743067495540048 cmd:["-c=\"print('hi')\""]
-[2024-11-10T09:09:45Z INFO  execsnoop] [hit] execve pid:1816635 ts:1743069885642674 cmd:["-c=\"print('hi')\""]
-[2024-11-10T09:17:01Z INFO  execsnoop] [hit] execve pid:1816758 ts:1743505561262607 cmd:["run-parts", "--report", "/etc/cron.hourly"]
-[2024-11-10T09:17:01Z INFO  execsnoop] [hit] execve pid:1816757 ts:1743505556385013 cmd:["/bin/sh", "-c", "   cd / && run-parts --report /etc/cron.hourly"]
+[2024-11-10T21:06:33Z INFO  execsnoop] Waiting for Ctrl-C...
+[2024-11-10T21:06:51Z INFO  execsnoop] Hit: MonitorRecordData { pid: 1817693, comm: Some("bash"), cmdline: Some(["/bin/bash", "-c", "ls -F --color "]) }
+[2024-11-10T21:06:57Z INFO  execsnoop] Hit: MonitorRecordData { pid: 1817695, comm: Some("bash"), cmdline: Some(["-bash"]) }
+[2024-11-10T21:06:57Z INFO  execsnoop] Hit: MonitorRecordData { pid: 1817697, comm: Some("watch"), cmdline: Some(["watch", "-n", "-1", "ls"]) }
+[2024-11-10T21:06:57Z INFO  execsnoop] Hit: MonitorRecordData { pid: 1817698, comm: Some("sh"), cmdline: Some(["sh", "-c", "ls"]) }
+[2024-11-10T21:06:57Z INFO  execsnoop] Hit: MonitorRecordData { pid: 1817700, comm: Some("watch"), cmdline: Some(["watch", "-n", "-1", "ls"]) }
 ```

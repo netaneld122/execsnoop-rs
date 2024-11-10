@@ -8,7 +8,7 @@ use env_logger;
 
 use execsnoop::{Event, EventReader};
 
-async fn monitor_perf_event_array(
+async fn monitor_execve(
     perf_array: &mut PerfEventArray<MapData>,
     last_events: &HashMap<MapData, u32, Event>,
 ) -> anyhow::Result<()> {
@@ -68,7 +68,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Start monitoring
     info!("Waiting for Ctrl-C...");
-    monitor_perf_event_array(&mut events, &last_events).await?;
+    monitor_execve(&mut events, &last_events).await?;
 
     info!("Exiting...");
     Ok(())

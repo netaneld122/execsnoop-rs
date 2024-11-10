@@ -1,7 +1,8 @@
 use log::{info, error};
 use env_logger;
-
+use tokio::{self, signal};
 use execsnoop;
+use execsnoop::MonitorRecord;
 
 fn set_memlock_rlimit_for_old_kernels() {
     // Bump the memlock rlimit. This is needed for older kernels that don't use the
@@ -29,10 +30,28 @@ async fn main() -> anyhow::Result<()> {
 
     set_memlock_rlimit_for_old_kernels();
 
-    let mut monitor = execsnoop::Monitor::new()?;
-    // Start monitoring
+    // Start async monitoring
     info!("Waiting for Ctrl-C...");
-    monitor.monitor_execve().await?;
+    let ctrl_c = tokio::spawn(signal::ctrl_c());
+
+    let mut monitor = execsnoop::Monitor::new().expect("Failed creating the execsnoop Monitor");
+    for record in monitor.into_iter() {
+        match record {
+            MonitorRecord::Hit(data) => {
+                info!("Hit: {:?}", data);
+            }
+            MonitorRecord::Miss(data) => {
+                info!("Miss: {:?}", data);
+            }
+            MonitorRecord::ProcessClosed{ pid} => {
+                info!("Process {pid} closed");
+            }
+            MonitorRecord::Nop => (),
+        }
+        if ctrl_c.is_finished() {
+            break;
+        }
+    }
 
     info!("Exiting...");
     Ok(())

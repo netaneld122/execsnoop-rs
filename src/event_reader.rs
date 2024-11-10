@@ -15,7 +15,7 @@ pub struct EventReader {
 }
 
 impl EventReader{
-    pub async fn from_perf_array(perf_array: &mut PerfEventArray<MapData>) -> anyhow::Result<Self> {
+    pub fn from_perf_array(perf_array: &mut PerfEventArray<MapData>) -> anyhow::Result<Self> {
         let mut perf_buffers = Vec::new();
         for cpu_id in online_cpus().map_err(|(_, error)| error)? {
             // this perf buffer will receive events generated on the CPU with id cpu_id
@@ -30,7 +30,7 @@ impl EventReader{
         })
     }
 
-    pub async fn read_bulk(&mut self) -> Vec<Event> {
+    pub fn read_bulk(&mut self) -> Vec<Event> {
         let mut all_events = Vec::new();
         for perf_buffer in self.perf_buffers.iter_mut() {
             let events = perf_buffer.read_events(&mut self.event_buffers).unwrap();

@@ -31,7 +31,7 @@ async fn monitor_execve(
     }
 }
 
-fn set_memlock_limit_for_old_kernels() {
+fn set_memlock_rlimit_for_old_kernels() {
     // Bump the memlock rlimit. This is needed for older kernels that don't use the
     // new memcg based accounting, see https://lwn.net/Articles/837122/
     let rlim = libc::rlimit {
@@ -52,11 +52,18 @@ fn load_ebpf_program() -> anyhow::Result<aya::Ebpf> {
     Ok(ebpf)
 }
 
+const DEFAULT_LOGGING_LEVEL: &str = "info";
+
+fn setup_logger() {
+    let env = env_logger::Env::default().default_filter_or(DEFAULT_LOGGING_LEVEL);
+    env_logger::Builder::from_env(env).init();
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    env_logger::init();
+    setup_logger();
 
-    set_memlock_limit_for_old_kernels();
+    set_memlock_rlimit_for_old_kernels();
 
     let mut ebpf = load_ebpf_program()?;
 

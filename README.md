@@ -20,7 +20,7 @@ make build
 
 Execute in a Linux machine:
 ```bash
-sudo RUST_LOG=info ./execsnoop
+sudo ./execsnoop
 ```
 
 ## Output example

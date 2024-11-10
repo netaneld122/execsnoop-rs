@@ -1,53 +1,66 @@
 
 use aya;
-use aya::maps::perf::PerfEventArrayBuffer;
-use aya::maps::{perf::PerfEventArray, MapData};
-use aya::util::online_cpus;
-use bytes::BytesMut;
+use aya::maps::{perf::PerfEventArray, HashMap, MapData};
+use aya::programs::TracePoint;
 
-#[derive(Debug, Clone, Copy)]
-#[repr(C)]
-pub struct Event {
-    pub pid: u32,
-    pub timestamp: u64,
-    pub comm: [u8; 16],
+use procfs::process::Process;
+
+use tokio::signal;
+use tokio::time::{timeout, Duration};
+
+use log::info;
+
+mod event;
+use event::Event;
+
+mod event_reader;
+use event_reader::EventReader;
+
+struct Maps {
+    events: PerfEventArray<MapData>,
+    last_events: HashMap<MapData, u32, Event>,
 }
 
-unsafe impl aya::Pod for Event {}
-
-const EVENT_BUFFERS_COUNT: usize = 10;
-
-pub struct EventReader {
-    perf_buffers: Vec<PerfEventArrayBuffer<MapData>>,
-    event_buffers: Vec<BytesMut>,
+impl Maps {
+    fn from_ebpf(ebpf: &mut aya::Ebpf) -> anyhow::Result<Self> {
+        let events = PerfEventArray::try_from(ebpf.take_map("events").unwrap())?;
+        let last_events = HashMap::try_from(ebpf.take_map("last_events").unwrap())?;
+        Ok(Self { events, last_events })
+    }
 }
 
-impl EventReader{
-    pub async fn from_perf_array(perf_array: &mut PerfEventArray<MapData>) -> anyhow::Result<Self> {
-        let mut perf_buffers = Vec::new();
-        for cpu_id in online_cpus().map_err(|(_, error)| error)? {
-            // this perf buffer will receive events generated on the CPU with id cpu_id
-            perf_buffers.push(perf_array.open(cpu_id, None)?);
-        }
-        let event_buffers = (0..EVENT_BUFFERS_COUNT).map(
-            |_| BytesMut::with_capacity(std::mem::size_of::<Event>())
-        ).collect();
-        Ok(Self {
-            perf_buffers,
-            event_buffers,
-        })
+pub struct Monitor {
+    ebpf: aya::Ebpf,
+}
+
+impl Monitor {
+    pub fn new() -> anyhow::Result<Self> {
+        let mut ebpf = aya::Ebpf::load(aya::include_bytes_aligned!("./bpf/execsnoop.bpf.o"))?;
+        let program: &mut TracePoint = ebpf.program_mut("execve_hook").unwrap().try_into()?;
+        program.load()?;
+        program.attach("syscalls", "sys_enter_execve")?;
+        Ok(Self { ebpf })
     }
 
-    pub async fn read_bulk(&mut self) -> Vec<Event> {
-        let mut all_events = Vec::new();
-        for perf_buffer in self.perf_buffers.iter_mut() {
-            let events = perf_buffer.read_events(&mut self.event_buffers).unwrap();
-            all_events.extend(self.event_buffers.iter().take(events.read).map(|buf| {
-                let event_ptr = buf.as_ptr() as *const Event;
-                let event = unsafe { *event_ptr }; // Copy the event
-                event
-            }));
+    pub async fn monitor_execve(&mut self) -> anyhow::Result<()> {
+        let mut maps = Maps::from_ebpf(&mut self.ebpf)?;
+        let mut reader = EventReader::from_perf_array(&mut maps.events).await?;
+        loop {
+            for event in reader.read_bulk().await {
+                match Process::new(event.pid as i32) {
+                    Ok(process) => {
+                        let comm = std::str::from_utf8(&event.comm).unwrap_or("<unknown>");
+                        let cmd = process.cmdline().unwrap_or_default();
+                        let last_event = maps.last_events.get(&event.pid, 0).unwrap();
+                        let marker = if event.timestamp == last_event.timestamp { "[hit]" } else { "[miss]" };
+                        info!("{} execve pid:{} comm:{} cmd:{:?}", marker, event.pid, comm, cmd);
+                    }
+                    _ => info!("execve pid:{}", event.pid)
+                }
+            }
+            if let Ok(_) = timeout(Duration::from_millis(1), signal::ctrl_c()).await {
+                return Ok(())
+            }
         }
-        all_events
     }
 }

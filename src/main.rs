@@ -1,36 +1,7 @@
-use procfs::process::Process;
-use aya::programs::TracePoint;
-use aya::maps::{perf::PerfEventArray, HashMap, MapData};
-use tokio::signal;
-use tokio::time::{timeout, Duration};
 use log::{info, error};
 use env_logger;
 
-use execsnoop::{Event, EventReader};
-
-async fn monitor_execve(
-    perf_array: &mut PerfEventArray<MapData>,
-    last_events: &HashMap<MapData, u32, Event>,
-) -> anyhow::Result<()> {
-    let mut reader = EventReader::from_perf_array(perf_array).await?;
-    loop {
-        for event in reader.read_bulk().await {
-            match Process::new(event.pid as i32) {
-                Ok(process) => {
-                    let comm = std::str::from_utf8(&event.comm).unwrap_or("<unknown>");
-                    let cmd = process.cmdline().unwrap_or_default();
-                    let last_event = last_events.get(&event.pid, 0).unwrap();
-                    let marker = if event.timestamp == last_event.timestamp { "[hit]" } else { "[miss]" };
-                    info!("{} execve pid:{} comm:{} cmd:{:?}", marker, event.pid, comm, cmd);
-                }
-                _ => info!("execve pid:{}", event.pid)
-            }
-        }
-        if let Ok(_) = timeout(Duration::from_millis(1), signal::ctrl_c()).await {
-            return Ok(())
-        }
-    }
-}
+use execsnoop;
 
 fn set_memlock_rlimit_for_old_kernels() {
     // Bump the memlock rlimit. This is needed for older kernels that don't use the
@@ -43,14 +14,6 @@ fn set_memlock_rlimit_for_old_kernels() {
     if ret != 0 {
         error!("remove limit on locked memory failed, ret is: {}", ret);
     }
-}
-
-fn load_ebpf_program() -> anyhow::Result<aya::Ebpf> {
-    let mut ebpf = aya::Ebpf::load(aya::include_bytes_aligned!("./bpf/execsnoop.bpf.o"))?;
-    let program: &mut TracePoint = ebpf.program_mut("execve_hook").unwrap().try_into()?;
-    program.load()?;
-    program.attach("syscalls", "sys_enter_execve")?;
-    Ok(ebpf)
 }
 
 const DEFAULT_LOGGING_LEVEL: &str = "info";
@@ -66,17 +29,10 @@ async fn main() -> anyhow::Result<()> {
 
     set_memlock_rlimit_for_old_kernels();
 
-    let mut ebpf = load_ebpf_program()?;
-
-    // Open the perf event array to read events
-    let mut events: PerfEventArray<MapData> = PerfEventArray::try_from(ebpf.take_map("events").unwrap())?;
-
-    // Open the last events map to keep track of the last event timestamp
-    let last_events = HashMap::try_from(ebpf.take_map("last_events").unwrap())?;
-
+    let mut monitor = execsnoop::Monitor::new()?;
     // Start monitoring
     info!("Waiting for Ctrl-C...");
-    monitor_execve(&mut events, &last_events).await?;
+    monitor.monitor_execve().await?;
 
     info!("Exiting...");
     Ok(())

@@ -23,6 +23,7 @@ int execve_hook(struct trace_event_raw_sys_enter* ctx)
     struct event event = {};
     event.pid = bpf_get_current_pid_tgid() >> 32;
     event.timestamp = bpf_ktime_get_ns();
+    bpf_get_current_comm(&event.comm, sizeof(event.comm));
 
     // Update the last_events map
     bpf_map_update_elem(&last_events, &event.pid, &event, BPF_ANY);
@@ -32,9 +33,7 @@ int execve_hook(struct trace_event_raw_sys_enter* ctx)
 
     // Print the event to /sys/kernel/debug/tracing/trace_pipe
     char msg[] = "execve\n";
-    char comm[TASK_COMM_LEN];
-    bpf_get_current_comm(&comm, sizeof(comm));
-    bpf_trace_printk(msg, sizeof(msg), comm);
+    bpf_trace_printk(msg, sizeof(msg));
     return 0;
 }
 

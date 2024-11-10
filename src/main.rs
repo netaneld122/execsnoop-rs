@@ -17,12 +17,13 @@ async fn monitor_execve(
         for event in reader.read_bulk().await {
             match Process::new(event.pid as i32) {
                 Ok(process) => {
+                    let comm = std::str::from_utf8(&event.comm).unwrap_or("<unknown>");
                     let cmd = process.cmdline().unwrap_or_default();
                     let last_event = last_events.get(&event.pid, 0).unwrap();
                     let marker = if event.timestamp == last_event.timestamp { "[hit]" } else { "[miss]" };
-                    info!("{} execve pid:{} ts:{} cmd:{:?}", marker, event.pid, event.timestamp, cmd);
+                    info!("{} execve pid:{} comm:{} cmd:{:?}", marker, event.pid, comm, cmd);
                 }
-                _ => info!("execve pid:{} ts:{}", event.pid, event.timestamp)
+                _ => info!("execve pid:{}", event.pid)
             }
         }
         if let Ok(_) = timeout(Duration::from_millis(1), signal::ctrl_c()).await {

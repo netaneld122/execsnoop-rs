@@ -1,8 +1,8 @@
-use log::{info, error};
 use env_logger;
-use tokio::{self, signal};
 use execsnoop;
 use execsnoop::ExecveRecord;
+use log::{error, info};
+use tokio::{self, signal};
 
 fn set_memlock_rlimit_for_old_kernels() {
     // Bump the memlock rlimit. This is needed for older kernels that don't use the
@@ -40,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
             ExecveRecord::ProcessData { .. } => {
                 info!("{:?}", record);
             }
-            ExecveRecord::ProcessClosed{ pid } => {
+            ExecveRecord::ProcessClosed { pid } => {
                 info!("Process {pid} closed");
             }
             ExecveRecord::None => (),

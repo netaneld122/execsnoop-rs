@@ -4,6 +4,7 @@ use aya::maps::{perf::PerfEventArray, HashMap, MapData};
 use aya::programs::TracePoint;
 
 use procfs::process::Process;
+use procfs::ProcResult;
 
 mod event;
 use event::Event;
@@ -25,43 +26,44 @@ impl Maps {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug)]
-pub struct MonitorRecordData {
-    pid: u32,
-    comm: Option<String>,
-    cmdline: Option<Vec<String>>,
+pub enum CmdlineRecord {
+    Reliable(ProcResult<Vec<String>>),
+    MissedSome(ProcResult<Vec<String>>),
 }
 
 #[derive(Debug)]
-pub enum MonitorRecord {
-    Hit(MonitorRecordData),
-    Miss(MonitorRecordData),
+pub enum ExecveRecord {
+    ProcessData {
+        pid: u32,
+        comm: Option<String>,
+        cmdline: CmdlineRecord,
+    },
     ProcessClosed{ pid: u32 },
-    Nop,  // We refrain from blocking the iterator, so when no new events are available, we return this
+    None,  // We refrain from blocking the iterator, so when no new events are available, we return this
 }
 
 pub struct Monitor {
     ebpf: aya::Ebpf,
 }
 
-fn event_to_record(event: &Event, maps: &Maps) -> MonitorRecord {
+fn event_to_record(event: &Event, maps: &Maps) -> ExecveRecord {
     match Process::new(event.pid as i32) {
         Ok(process) => {
-            let cmdline = process.cmdline().ok();
+            let cmdline = process.cmdline();
             let last_event = maps.last_events.get(&event.pid, 0).unwrap();
-            let record_data = MonitorRecordData {
+            let cmdline = if event.timestamp == last_event.timestamp {
+                CmdlineRecord::Reliable(cmdline)
+            } else {
+                CmdlineRecord::MissedSome(cmdline)
+            };
+            ExecveRecord::ProcessData {
                 pid: event.pid,
                 comm: std::str::from_utf8(&event.comm).ok().map(|s| s.trim_end_matches('\0').to_string()),
                 cmdline,
-            };
-            if event.timestamp == last_event.timestamp {
-                MonitorRecord::Hit(record_data)
-            } else {
-                MonitorRecord::Miss(record_data)
             }
         }
-        _ => MonitorRecord::ProcessClosed{ pid: event.pid },
+        _ => ExecveRecord::ProcessClosed{ pid: event.pid },
     }
 }
 
@@ -74,12 +76,12 @@ impl Monitor {
         Ok(Self { ebpf })
     }
 
-    pub fn into_iter(&mut self) -> impl Iterator<Item=MonitorRecord> {
+    pub fn into_iter(&mut self) -> impl Iterator<Item=ExecveRecord> {
         let mut maps = Maps::from_ebpf(&mut self.ebpf).expect("Failed to load maps");
         let mut reader = EventReader::from_perf_array(&mut maps.events).expect("Failed to read from perf array");
         std::iter::from_fn(move || {
             Some(reader.read_bulk().into_iter().map(|event| event_to_record(&event, &maps)).collect::<Vec<_>>())
-        }).flat_map(|v|if v.len() == 0 { vec![MonitorRecord::Nop] } else { v })
+        }).flat_map(|v|if v.len() == 0 { vec![ExecveRecord::None] } else { v })
     }
 }
 

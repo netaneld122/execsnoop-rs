@@ -25,10 +25,10 @@ sudo ./execsnoop
 
 ## Output example
 ```bash
-[2024-11-10T21:06:33Z INFO  execsnoop] Waiting for Ctrl-C...
-[2024-11-10T21:06:51Z INFO  execsnoop] Hit: MonitorRecordData { pid: 1817693, comm: Some("bash"), cmdline: Some(["/bin/bash", "-c", "ls -F --color "]) }
-[2024-11-10T21:06:57Z INFO  execsnoop] Hit: MonitorRecordData { pid: 1817695, comm: Some("bash"), cmdline: Some(["-bash"]) }
-[2024-11-10T21:06:57Z INFO  execsnoop] Hit: MonitorRecordData { pid: 1817697, comm: Some("watch"), cmdline: Some(["watch", "-n", "-1", "ls"]) }
-[2024-11-10T21:06:57Z INFO  execsnoop] Hit: MonitorRecordData { pid: 1817698, comm: Some("sh"), cmdline: Some(["sh", "-c", "ls"]) }
-[2024-11-10T21:06:57Z INFO  execsnoop] Hit: MonitorRecordData { pid: 1817700, comm: Some("watch"), cmdline: Some(["watch", "-n", "-1", "ls"]) }
+[2024-11-11T09:28:57Z INFO  execsnoop] Waiting for Ctrl-C...
+[2024-11-11T09:28:59Z INFO  execsnoop] ProcessData { pid: 1820391, comm: Some("bash"), cmdline: Reliable(Ok(["watch", "-n", "-1", "ls"])) }
+[2024-11-11T09:28:59Z INFO  execsnoop] ProcessData { pid: 1820393, comm: Some("watch"), cmdline: Reliable(Ok(["sh", "-c", "ls"])) }
+[2024-11-11T09:28:59Z INFO  execsnoop] ProcessData { pid: 1820394, comm: Some("sh"), cmdline: Reliable(Ok(["sh", "-c", "ls"])) }
+[2024-11-11T09:28:59Z INFO  execsnoop] ProcessData { pid: 1820396, comm: Some("watch"), cmdline: Reliable(Ok(["watch", "-n", "-1", "ls"])) }
+[2024-11-11T09:28:59Z INFO  execsnoop] ProcessData { pid: 1820397, comm: Some("sh"), cmdline: Reliable(Ok(["sh", "-c", "ls"])) }
 ```

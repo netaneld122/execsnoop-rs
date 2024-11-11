@@ -30,17 +30,17 @@ async fn main() -> anyhow::Result<()> {
 
     set_memlock_rlimit_for_old_kernels();
 
-    // Start async monitoring
     info!("Waiting for Ctrl-C...");
     let ctrl_c = tokio::spawn(signal::ctrl_c());
 
-    let mut monitor = execsnoop::Monitor::new().expect("Failed creating the execsnoop Monitor");
-    for record in monitor.into_iter() {
+    // Start monitoring
+    let monitor = execsnoop::Monitor::new()?;
+    for record in monitor {
         match record {
-            ExecveRecord::ProcessData {..} => {
+            ExecveRecord::ProcessData { .. } => {
                 info!("{:?}", record);
             }
-            ExecveRecord::ProcessClosed{ pid} => {
+            ExecveRecord::ProcessClosed{ pid } => {
                 info!("Process {pid} closed");
             }
             ExecveRecord::None => (),

@@ -75,13 +75,38 @@ impl Monitor {
         program.attach("syscalls", "sys_enter_execve")?;
         Ok(Self { ebpf })
     }
+}
 
-    pub fn into_iter(&mut self) -> impl Iterator<Item=ExecveRecord> {
-        let mut maps = Maps::from_ebpf(&mut self.ebpf).expect("Failed to load maps");
-        let mut reader = EventReader::from_perf_array(&mut maps.events).expect("Failed to read from perf array");
-        std::iter::from_fn(move || {
-            Some(reader.read_bulk().into_iter().map(|event| event_to_record(&event, &maps)).collect::<Vec<_>>())
-        }).flat_map(|v|if v.len() == 0 { vec![ExecveRecord::None] } else { v })
+pub struct MonitorIterator {
+    // Unfortunately the aya crate doesn't handle lifetimes well, so we need to keep the Ebpf instance around to keep the maps alive
+    #[allow(dead_code)]
+    ebpf: aya::Ebpf,
+    pub iter: Box<dyn Iterator<Item=ExecveRecord>>,
+}
+
+impl Iterator for MonitorIterator {
+    type Item = ExecveRecord;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        (*self.iter).next()
     }
 }
 
+impl IntoIterator for Monitor {
+    type Item = ExecveRecord;
+    type IntoIter = MonitorIterator;
+
+    fn into_iter(mut self) -> Self::IntoIter {
+        let mut maps = Maps::from_ebpf(&mut self.ebpf).expect("Failed to load maps");
+        let mut reader = EventReader::from_perf_array(&mut maps.events).expect("Failed to read from perf array");
+
+        // Flatten the event bulks into individual records
+        let iter = std::iter::from_fn(move || {
+            Some(reader.read_bulk().into_iter().map(|event| event_to_record(&event, &maps)).collect::<Vec<_>>())
+        }).flat_map(|v| if v.len() == 0 { vec![ExecveRecord::None] } else { v });
+
+        // The iterator we're creating here is too complex to be expressed as an associated type in Iterator/IntoIterator (type_alias_impl_trait isn't stable yet),
+        // so we wrap it in a Box and reference it dynamically by the trait object.
+        MonitorIterator { ebpf: self.ebpf, iter: Box::new(iter) }
+    }
+}

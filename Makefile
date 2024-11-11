@@ -25,6 +25,10 @@ build: build-ebpf
 	cp ${TARGET} ${OUTPUT}
 	chmod +x ${OUTPUT}
 
+check:
+	cargo check --target=${ARCH}-unknown-linux-musl \
+		--config=target.${ARCH}-unknown-linux-musl.linker=\"${ARCH}-linux-musl-gcc\"
+
 clean:
 	git clean -fx src/bpf/
 	cargo clean

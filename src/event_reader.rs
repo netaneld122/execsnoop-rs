@@ -31,16 +31,28 @@ impl EventReader {
         })
     }
 
-    pub fn read_bulk(&mut self) -> Vec<Event> {
-        let mut all_events = Vec::new();
-        for perf_buffer in self.perf_buffers.iter_mut() {
-            let events = perf_buffer.read_events(&mut self.event_buffers).unwrap();
-            all_events.extend(self.event_buffers.iter().take(events.read).map(|buf| {
+    fn read_events_from_perf_buffer(
+        event_buffers: &mut Vec<BytesMut>,
+        perf_buffer: &mut PerfEventArrayBuffer<MapData>,
+    ) -> Vec<Event> {
+        let events = perf_buffer.read_events(event_buffers).unwrap();
+        event_buffers
+            .iter()
+            .take(events.read)
+            .map(|buf| {
                 let event_ptr = buf.as_ptr() as *const Event;
                 let event = unsafe { *event_ptr }; // Copy the event
                 event
-            }));
-        }
-        all_events
+            })
+            .collect::<Vec<_>>()
+    }
+
+    pub fn read_bulk(&mut self) -> Vec<Event> {
+        self.perf_buffers
+            .iter_mut()
+            .flat_map(|perf_buffer| {
+                Self::read_events_from_perf_buffer(&mut self.event_buffers, perf_buffer)
+            })
+            .collect()
     }
 }

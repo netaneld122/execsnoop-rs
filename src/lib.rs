@@ -91,7 +91,7 @@ impl Iterator for MonitorIterator {
     type Item = ExecveRecord;
 
     fn next(&mut self) -> Option<Self::Item> {
-        (*self.iter).next()
+        self.iter.next()
     }
 }
 

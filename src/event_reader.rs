@@ -15,11 +15,13 @@ pub struct EventReader {
 
 impl EventReader {
     pub fn from_perf_array(perf_array: &mut PerfEventArray<MapData>) -> anyhow::Result<Self> {
-        let mut perf_buffers = Vec::new();
-        for cpu_id in online_cpus().map_err(|(_, error)| error)? {
-            // this perf buffer will receive events generated on the CPU with id cpu_id
-            perf_buffers.push(perf_array.open(cpu_id, None)?);
-        }
+        // Construct the per-core perf buffers
+        let perf_buffers: Vec<PerfEventArrayBuffer<MapData>> = online_cpus()
+            .map_err(|(_, error)| error)?
+            .into_iter()
+            .map(|cpu_id| perf_array.open(cpu_id, None).unwrap())
+            .collect();
+        // Construct the event buffering
         let event_buffers = (0..EVENT_BUFFERS_COUNT)
             .map(|_| BytesMut::with_capacity(std::mem::size_of::<Event>()))
             .collect();

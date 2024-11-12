@@ -25,10 +25,14 @@ sudo ./execsnoop
 
 ## Output example
 ```bash
-[2024-11-11T20:13:48Z INFO  execsnoop] Waiting for Ctrl-C...
-[2024-11-11T20:13:50Z INFO  execsnoop] ProcessData { pid: 1879728, comm: Some("bash"), cmdline: Reliable(Ok(["watch", "-n", "-1", "ls"])) }
-[2024-11-11T20:13:50Z INFO  execsnoop] ProcessData { pid: 1879730, comm: Some("watch"), cmdline: Reliable(Ok(["sh", "-c", "ls"])) }
-[2024-11-11T20:13:50Z INFO  execsnoop] ProcessData { pid: 1879731, comm: Some("sh"), cmdline: Reliable(Ok(["ls"])) }
-[2024-11-11T20:13:50Z INFO  execsnoop] ProcessData { pid: 1879733, comm: Some("watch"), cmdline: Reliable(Ok(["watch", "-n", "-1", "ls"])) }
-[2024-11-11T20:13:50Z INFO  execsnoop] ProcessData { pid: 1879734, comm: Some("sh"), cmdline: Reliable(Ok(["sh", "-c", "ls"])) }
+[2024-11-12T11:40:04Z INFO  execsnoop] Waiting for Ctrl-C...
+[2024-11-12T11:40:34Z INFO  execsnoop] ProcessData { pid: 1882584, comm: Some("sshd"), cmdline: Reliable(Ok(["/usr/sbin/sshd", "-D", "-R"])) }
+[2024-11-12T11:40:37Z INFO  execsnoop] ProcessData { pid: 1882586, comm: Some("sshd"), cmdline: Reliable(Ok(["sshd: [accepted]"])) }
+[2024-11-12T11:40:40Z INFO  execsnoop] ProcessData { pid: 1882588, comm: Some("sshd"), cmdline: Reliable(Ok(["sshd: vagrant [priv]"])) }
+[2024-11-12T11:40:40Z INFO  execsnoop] ProcessData { pid: 1882590, comm: Some("sh"), cmdline: Reliable(Ok([])) }
+[2024-11-12T11:40:40Z INFO  execsnoop] ProcessData { pid: 1882590, comm: Some("env"), cmdline: MissedSome(Ok(["/usr/bin/env", "-i", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "run-parts", "--lsbsysinit", "/etc/update-motd.d"])) }
+[2024-11-12T11:40:40Z INFO  execsnoop] ProcessData { pid: 1882590, comm: Some("env"), cmdline: MissedSome(Ok(["/usr/bin/env", "-i", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "run-parts", "--lsbsysinit", "/etc/update-motd.d"])) }
+[2024-11-12T11:40:40Z INFO  execsnoop] ProcessData { pid: 1882590, comm: Some("env"), cmdline: MissedSome(Ok(["/usr/bin/env", "-i", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "run-parts", "--lsbsysinit", "/etc/update-motd.d"])) }
+[2024-11-12T11:40:40Z INFO  execsnoop] ProcessData { pid: 1882590, comm: Some("env"), cmdline: Reliable(Ok(["/usr/bin/env", "-i", "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "run-parts", "--lsbsysinit", "/etc/update-motd.d"])) }
+[2024-11-12T11:40:40Z INFO  execsnoop] ProcessData { pid: 1882601, comm: Some("run-parts"), cmdline: Reliable(Ok(["run-parts", "--lsbsysinit", "/etc/update-motd.d"])) }
 ```

@@ -80,14 +80,14 @@ impl Monitor {
     }
 }
 
-pub struct MonitorIterator {
-    // Unfortunately the aya crate doesn't handle lifetimes well, so we need to keep the Ebpf instance around to keep the maps alive
+pub struct MonitorIntoIter {
+    // Keep the Ebpf instance around to keep the maps alive
     #[allow(dead_code)]
     ebpf: aya::Ebpf,
     pub iter: Box<dyn Iterator<Item = ExecveRecord>>,
 }
 
-impl Iterator for MonitorIterator {
+impl Iterator for MonitorIntoIter {
     type Item = ExecveRecord;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -97,7 +97,7 @@ impl Iterator for MonitorIterator {
 
 impl IntoIterator for Monitor {
     type Item = ExecveRecord;
-    type IntoIter = MonitorIterator;
+    type IntoIter = MonitorIntoIter;
 
     fn into_iter(mut self) -> Self::IntoIter {
         let mut maps = Maps::from_ebpf(&mut self.ebpf).expect("Failed to load maps");
@@ -124,7 +124,7 @@ impl IntoIterator for Monitor {
 
         // The iterator we're creating here is too complex to be expressed as an associated type in Iterator/IntoIterator (type_alias_impl_trait isn't stable yet),
         // so we wrap it in a Box and reference it dynamically by the trait object.
-        MonitorIterator {
+        MonitorIntoIter {
             ebpf: self.ebpf,
             iter: Box::new(iter),
         }

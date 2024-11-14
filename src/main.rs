@@ -1,4 +1,5 @@
 use crate::readable::ReadableProcessData;
+use clap::{arg, Parser};
 use env_logger;
 use execsnoop::{self, ExecveRecord};
 use log::{error, info};
@@ -26,8 +27,18 @@ fn setup_logger() {
     env_logger::Builder::from_env(env).init();
 }
 
+/// Simple CLI tool to monitor execve() syscalls
+#[derive(Parser)]
+struct Cli {
+    /// Display error cases in more detail
+    #[arg(short, long)]
+    debug: bool,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+
     setup_logger();
 
     set_memlock_rlimit_for_old_kernels();
@@ -40,7 +51,11 @@ async fn main() -> anyhow::Result<()> {
     for record in monitor {
         match record {
             ExecveRecord::ProcessData { .. } => {
-                info!("{:#?}", ReadableProcessData::from(record));
+                if cli.debug {
+                    info!("{:?}", record);
+                } else {
+                    info!("{:#?}", ReadableProcessData::from(record));
+                }
             }
             ExecveRecord::None => (),
             _ => {

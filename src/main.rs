@@ -1,8 +1,10 @@
+use crate::readable::ReadableProcessData;
 use env_logger;
-use execsnoop;
-use execsnoop::ExecveRecord;
+use execsnoop::{self, ExecveRecord};
 use log::{error, info};
 use tokio::{self, signal};
+
+mod readable;
 
 fn set_memlock_rlimit_for_old_kernels() {
     // Bump the memlock rlimit. This is needed for older kernels that don't use the
@@ -38,12 +40,12 @@ async fn main() -> anyhow::Result<()> {
     for record in monitor {
         match record {
             ExecveRecord::ProcessData { .. } => {
-                info!("{:?}", record);
-            }
-            ExecveRecord::ProcessClosed { pid } => {
-                info!("Process {pid} closed");
+                info!("{:#?}", ReadableProcessData::from(record));
             }
             ExecveRecord::None => (),
+            _ => {
+                info!("{:?}", record);
+            }
         }
         if ctrl_c.is_finished() {
             break;

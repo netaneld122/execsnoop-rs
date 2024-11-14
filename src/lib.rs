@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use aya;
 use aya::maps::{perf::PerfEventArray, HashMap, MapData};
 use aya::programs::TracePoint;
@@ -10,6 +12,9 @@ use event::Event;
 
 mod event_reader;
 use event_reader::EventReader;
+
+mod execfn;
+use execfn::get_process_execfn;
 
 struct Maps {
     events: PerfEventArray<MapData>,
@@ -28,7 +33,19 @@ impl Maps {
 #[derive(Debug)]
 pub enum CmdlineRecord {
     Reliable(ProcResult<Vec<String>>),
-    MissedSome(ProcResult<Vec<String>>),
+    Unreliable(ProcResult<Vec<String>>),
+}
+
+#[derive(Debug)]
+pub enum ExeRecord {
+    Reliable(ProcResult<PathBuf>),
+    Unreliable(ProcResult<PathBuf>),
+}
+
+#[derive(Debug)]
+pub enum ExecfnRecord {
+    Reliable(Option<String>),
+    Unreliable(Option<String>),
 }
 
 #[derive(Debug)]
@@ -36,10 +53,13 @@ pub enum ExecveRecord {
     ProcessData {
         pid: u32,
         comm: Option<String>,
+        exe: ExeRecord,
+        execfn: ExecfnRecord,
         cmdline: CmdlineRecord,
     },
     ProcessClosed {
         pid: u32,
+        comm: Option<String>,
     },
     None, // We refrain from blocking the iterator, so when no new events are available, we return this
 }
@@ -49,30 +69,47 @@ pub struct Monitor {
 }
 
 fn event_to_record(event: &Event, maps: &Maps) -> ExecveRecord {
+    let comm = std::str::from_utf8(&event.comm)
+        .ok()
+        .map(|s| s.trim_end_matches('\0').to_string());
     match Process::new(event.pid as i32) {
         Ok(process) => {
             let cmdline = process.cmdline();
+            let exe = process.exe();
+            let execfn = get_process_execfn(event.pid).ok();
             let last_event = maps.last_events.get(&event.pid, 0).unwrap();
-            let cmdline = if event.timestamp == last_event.timestamp {
-                CmdlineRecord::Reliable(cmdline)
-            } else {
-                CmdlineRecord::MissedSome(cmdline)
-            };
+            let (cmdline, exe, execfn) =
+                if event.timestamp == last_event.timestamp && process.is_alive() {
+                    (
+                        CmdlineRecord::Reliable(cmdline),
+                        ExeRecord::Reliable(exe),
+                        ExecfnRecord::Reliable(execfn),
+                    )
+                } else {
+                    (
+                        CmdlineRecord::Unreliable(cmdline),
+                        ExeRecord::Unreliable(exe),
+                        ExecfnRecord::Unreliable(execfn),
+                    )
+                };
             ExecveRecord::ProcessData {
                 pid: event.pid,
-                comm: std::str::from_utf8(&event.comm)
-                    .ok()
-                    .map(|s| s.trim_end_matches('\0').to_string()),
+                comm,
+                exe,
+                execfn,
                 cmdline,
             }
         }
-        _ => ExecveRecord::ProcessClosed { pid: event.pid },
+        _ => ExecveRecord::ProcessClosed {
+            pid: event.pid,
+            comm,
+        },
     }
 }
 
 impl Monitor {
     pub fn new() -> anyhow::Result<Self> {
-        let mut ebpf = aya::Ebpf::load(aya::include_bytes_aligned!("./bpf/execsnoop.bpf.o"))?;
+        let mut ebpf = aya::Ebpf::load(aya::include_bytes_aligned!("bpf/execsnoop.bpf.o"))?;
         let program: &mut TracePoint = ebpf.program_mut("execve_hook").unwrap().try_into()?;
         program.load()?;
         program.attach("syscalls", "sys_enter_execve")?;

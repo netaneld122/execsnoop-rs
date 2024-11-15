@@ -35,6 +35,9 @@ impl EventReader {
         perf_buffer: &mut PerfEventArrayBuffer<MapData>,
     ) -> Vec<Event> {
         let events = perf_buffer.read_events(event_buffers).unwrap();
+        if events.lost > 0 {
+            log::warn!("Lost {} events", events.lost);
+        }
         event_buffers
             .iter()
             .take(events.read)

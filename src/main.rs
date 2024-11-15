@@ -1,6 +1,5 @@
 use crate::readable::ReadableProcessData;
 use clap::{arg, Parser};
-use env_logger;
 use execsnoop::{self, ExecveRecord};
 use log::{error, info};
 use tokio::{self, signal};

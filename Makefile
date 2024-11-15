@@ -11,6 +11,9 @@ CC := ${ARCH}-linux-musl-gcc
 TARGET := target/aarch64-unknown-linux-musl/debug/execsnoop
 OUTPUT ?= ${_WORK_DIR}/execsnoop
 
+TARGET_CFG := --target=${ARCH}-unknown-linux-musl \
+		--config=target.${ARCH}-unknown-linux-musl.linker=\"${ARCH}-linux-musl-gcc\"
+
 ${TARGET}:
 
 build-ebpf: ${TARGET}
@@ -18,16 +21,17 @@ build-ebpf: ${TARGET}
 
 build: build-ebpf
 	@echo "Building for ${ARCH}"
-	cargo build --target=${ARCH}-unknown-linux-musl \
-		--config=target.${ARCH}-unknown-linux-musl.linker=\"${ARCH}-linux-musl-gcc\"
+	cargo build ${TARGET_CFG}
 
 	@echo "Copying binary to shared dir"
 	cp ${TARGET} ${OUTPUT}
 	chmod +x ${OUTPUT}
 
 check:
-	cargo check --target=${ARCH}-unknown-linux-musl \
-		--config=target.${ARCH}-unknown-linux-musl.linker=\"${ARCH}-linux-musl-gcc\"
+	cargo check ${TARGET_CFG}
+
+lint:
+	cargo clippy ${TARGET_CFG}
 
 clean:
 	git clean -fx src/bpf/

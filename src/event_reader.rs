@@ -1,4 +1,3 @@
-use aya;
 use aya::maps::perf::PerfEventArrayBuffer;
 use aya::maps::{perf::PerfEventArray, MapData};
 use aya::util::online_cpus;
@@ -32,7 +31,7 @@ impl EventReader {
     }
 
     fn read_events_from_perf_buffer(
-        event_buffers: &mut Vec<BytesMut>,
+        event_buffers: &mut [BytesMut],
         perf_buffer: &mut PerfEventArrayBuffer<MapData>,
     ) -> Vec<Event> {
         let events = perf_buffer.read_events(event_buffers).unwrap();
@@ -41,10 +40,9 @@ impl EventReader {
             .take(events.read)
             .map(|buf| {
                 let event_ptr = buf.as_ptr() as *const Event;
-                let event = unsafe { *event_ptr }; // Copy the event
-                event
+                unsafe { *event_ptr } // Copy the event
             })
-            .collect::<Vec<_>>()
+            .collect()
     }
 
     pub fn read_bulk(&mut self) -> Vec<Event> {

@@ -1,5 +1,3 @@
-use aya;
-
 const TASK_COMM_LEN: usize = 16;
 
 #[derive(Debug, Clone, Copy)]

@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use aya;
 use aya::maps::{perf::PerfEventArray, HashMap, MapData};
 use aya::programs::TracePoint;
 
@@ -152,7 +151,7 @@ impl IntoIterator for Monitor {
             )
         })
         .flat_map(|v| {
-            if v.len() == 0 {
+            if v.is_empty() {
                 vec![ExecveRecord::None]
             } else {
                 v

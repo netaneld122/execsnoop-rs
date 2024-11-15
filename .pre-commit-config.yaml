@@ -15,3 +15,10 @@ repos:
       language: system
       types: [rust]
       pass_filenames: false
+    - id: cargo-clippy
+      name: cargo clippy
+      description: Run the clippy linter.
+      entry: make lint
+      language: system
+      types: [rust]
+      pass_filenames: false

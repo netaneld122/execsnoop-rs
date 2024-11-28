@@ -109,9 +109,13 @@ fn event_to_record(event: &Event, maps: &Maps) -> ExecveRecord {
 impl Monitor {
     pub fn new() -> anyhow::Result<Self> {
         let mut ebpf = aya::Ebpf::load(aya::include_bytes_aligned!("bpf/execsnoop.bpf.o"))?;
-        let program: &mut TracePoint = ebpf.program_mut("execve_hook").unwrap().try_into()?;
+        let program: &mut TracePoint = ebpf.program_mut("execve_hook_enter").unwrap().try_into()?;
         program.load()?;
         program.attach("syscalls", "sys_enter_execve")?;
+
+        let program: &mut TracePoint = ebpf.program_mut("execve_hook_exit").unwrap().try_into()?;
+        program.load()?;
+        program.attach("syscalls", "sys_exit_execve")?;
         Ok(Self { ebpf })
     }
 }

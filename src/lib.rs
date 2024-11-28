@@ -30,12 +30,6 @@ impl Maps {
 }
 
 #[derive(Debug)]
-pub enum CmdlineRecord {
-    Reliable(ProcResult<Vec<String>>),
-    Unreliable(ProcResult<Vec<String>>),
-}
-
-#[derive(Debug)]
 pub enum ExeRecord {
     Reliable(ProcResult<PathBuf>),
     Unreliable(ProcResult<PathBuf>),
@@ -54,7 +48,8 @@ pub enum ExecveRecord {
         comm: Option<String>,
         exe: ExeRecord,
         execfn: ExecfnRecord,
-        cmdline: CmdlineRecord,
+        filename: String,
+        args: String,
     },
     ProcessClosed {
         pid: u32,
@@ -73,30 +68,29 @@ fn event_to_record(event: &Event, maps: &Maps) -> ExecveRecord {
         .map(|s| s.trim_end_matches('\0').to_string());
     match Process::new(event.pid as i32) {
         Ok(process) => {
-            let cmdline = process.cmdline();
+            let filename = core::str::from_utf8(&event.filename)
+                .unwrap_or("<invalid utf8>")
+                .trim_end_matches('\0')
+                .to_string();
+            let args = core::str::from_utf8(&event.args)
+                .unwrap_or("<invalid utf8>")
+                .trim_end_matches('\0')
+                .to_string();
             let exe = process.exe();
             let execfn = get_process_execfn(event.pid).ok();
             let last_event = maps.last_events.get(&event.pid, 0).unwrap();
-            let (cmdline, exe, execfn) =
-                if event.timestamp == last_event.timestamp && process.is_alive() {
-                    (
-                        CmdlineRecord::Reliable(cmdline),
-                        ExeRecord::Reliable(exe),
-                        ExecfnRecord::Reliable(execfn),
-                    )
-                } else {
-                    (
-                        CmdlineRecord::Unreliable(cmdline),
-                        ExeRecord::Unreliable(exe),
-                        ExecfnRecord::Unreliable(execfn),
-                    )
-                };
+            let (exe, execfn) = if event.timestamp == last_event.timestamp && process.is_alive() {
+                (ExeRecord::Reliable(exe), ExecfnRecord::Reliable(execfn))
+            } else {
+                (ExeRecord::Unreliable(exe), ExecfnRecord::Unreliable(execfn))
+            };
             ExecveRecord::ProcessData {
                 pid: event.pid,
                 comm,
                 exe,
                 execfn,
-                cmdline,
+                filename,
+                args,
             }
         }
         _ => ExecveRecord::ProcessClosed {

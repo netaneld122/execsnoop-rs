@@ -16,14 +16,61 @@ struct {
     __type(value, struct event);
 } last_events SEC(".maps");
 
+struct sys_enter_common_context {
+    unsigned short type;
+    unsigned char flags;
+    unsigned char preempt_count;
+    int pid;
+    int syscall_nr;
+};
+
+struct sys_enter_execve_context {
+    struct sys_enter_common_context common;
+    const char* filename;
+    const char *const * argv;
+    const char *const * envp;
+};
+
 SEC("tracepoint/syscalls/sys_enter_execve")
-int execve_hook(struct trace_event_raw_sys_enter* ctx)
+int execve_hook(struct sys_enter_execve_context* ctx)
 {
     // Construct the event
     struct event event = {};
+    int ret = 0;
     event.pid = bpf_get_current_pid_tgid() >> 32;
     event.timestamp = bpf_ktime_get_ns();
-    bpf_get_current_comm(&event.comm, sizeof(event.comm));
+    ret = bpf_get_current_comm(&event.comm, sizeof(event.comm));
+    if (ret < 0) {
+        return 1;
+    }
+
+    // Read the filename
+    ret = bpf_probe_read_user_str(event.filename, sizeof(event.filename), ctx->filename);
+    if (ret < 0) {
+       return 1;
+    }
+
+    // Read the arguments
+    size_t offset = 0;
+    const char* ptr;
+    #pragma unroll
+    for (size_t i = 0; i < 10; i++) {
+        ret = bpf_probe_read_user(&ptr, sizeof(ptr), &ctx->argv[i]);
+        if (ret < 0) {
+            break;
+        }
+        // Need to make it clear for the verifier that offset + bytes_about_to_be_read < ARGS_LEN,
+        // unfortunately it can't do simple arithmetic (i.e offset + ret < ARGS_LEN) so we need to statically
+        // limit both to ARGS_LEN / 2.
+        if (ptr == NULL || offset >= ARGS_LEN / 2) {
+            break;
+        }
+        ret = bpf_probe_read_user_str(event.args + offset, ARGS_LEN / 2, ptr);
+        if (ret < 0) {
+            break;
+        }
+        offset += ret;
+    }
 
     // Update the last_events map
     bpf_map_update_elem(&last_events, &event.pid, &event, BPF_ANY);

@@ -1,4 +1,4 @@
-use execsnoop::{CmdlineRecord, ExeRecord, ExecfnRecord, ExecveRecord};
+use execsnoop::{ExeRecord, ExecfnRecord, ExecveRecord};
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -7,7 +7,8 @@ pub struct ReadableProcessData {
     comm: String,
     exe: String,
     execfn: String,
-    cmdline: String,
+    filename: String,
+    args: String,
 }
 
 const NOT_AVAILABLE: &str = "<N/A>";
@@ -20,7 +21,8 @@ impl From<ExecveRecord> for ReadableProcessData {
                 comm,
                 exe,
                 execfn,
-                cmdline,
+                filename,
+                args,
             } => ReadableProcessData {
                 pid,
                 comm: comm.unwrap_or(NOT_AVAILABLE.to_string()),
@@ -34,10 +36,8 @@ impl From<ExecveRecord> for ReadableProcessData {
                     ExecfnRecord::Reliable(Some(execfn)) => execfn,
                     _ => NOT_AVAILABLE.to_string(),
                 },
-                cmdline: match cmdline {
-                    CmdlineRecord::Reliable(Ok(cmdline)) => cmdline.join(" "),
-                    _ => NOT_AVAILABLE.to_string(),
-                },
+                filename,
+                args: args.split("\0").collect::<Vec<_>>().join(" "),
             },
             _ => unreachable!(),
         }
